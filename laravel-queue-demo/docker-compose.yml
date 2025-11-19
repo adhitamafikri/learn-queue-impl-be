@@ -1,0 +1,64 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    ports:
+      - 5432:5432
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: laravel_queue_demo
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - laravel-queue-demo
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - 6379:6379
+    restart: unless-stopped
+    command: redis-server --requirepass fikridev
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    volumes:
+      - redis_data:/data
+    networks:
+      - laravel-queue-demo
+
+  api:
+    build: .
+    working_dir: /app
+    ports:
+      - "8000:8000"
+    environment:
+      - DB_CONNECTION=pgsql
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_DATABASE=laravel_queue_demo
+      - DB_USERNAME=postgres
+      - DB_PASSWORD=postgres
+      - REDIS_HOST=redis
+      - REDIS_PASSWORD=fikridev
+      - REDIS_PORT=6379
+    volumes:
+      - .:/app:delegated
+      - /app/vendor
+      - api_storage:/app/storage
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - laravel-queue-demo
+
+networks:
+  laravel-queue-demo:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  redis_data:
+  api_storage:
